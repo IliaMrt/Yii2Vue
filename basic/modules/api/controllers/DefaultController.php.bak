@@ -1,0 +1,105 @@
+<?php
+
+//header('Access-Control-Allow-Origin: *');
+//header('Access-Control-Allow-Headers: authorization');
+//header('Access-Control-Allow-Credentials: true');
+
+namespace app\modules\api\controllers;
+
+use app\models\Feedbacks;
+use yii\filters\AccessControl;
+use yii\filters\auth\HttpBearerAuth;
+use yii\helpers\ArrayHelper;
+use yii\httpclient\Client;
+use yii\filters\Cors;
+use yii\rest\Controller;
+
+class DefaultController extends Controller
+
+{
+
+//    public function behaviors(){
+//        return array_merge(parent::behaviors(),[
+//            'cors'=>Cors::class
+//        ]);
+//    }
+   /* public function behaviors()
+    {
+        return ArrayHelper::merge([
+            [
+                'class' => Cors::class,
+                'cors' => [
+                    'Origin' => ['*', '193.32.203.137/:1'],
+                    'Access-Control-Allow-Headers'=> ['authorization'],
+                    'Access-Control-Allow-Credentials'=>true,
+                    'Access-Control-Request-Method' => ['get', 'POST','HEAD', 'OPTIONS'],
+                ],
+            ],
+        ], parent::behaviors());
+    }*/
+    public function behaviors()
+    {
+        $behaviors = parent::behaviors();
+
+        // remove authentication filter
+        $auth = $behaviors['authenticator'];
+        unset($behaviors['authenticator']);
+
+        // add CORS filter
+        $behaviors['corsFilter'] = [
+            'class' => \yii\filters\Cors::class,
+        ];
+
+        // re-add authentication filter
+        $behaviors['authenticator'] = $auth;
+        // avoid authentication on CORS-pre-flight requests (HTTP OPTIONS method)
+        $behaviors['authenticator']['except'] = ['options'];
+
+        return $behaviors;
+    }
+    public function actions()
+    {
+        $actions = parent::actions();
+
+        // disable the "delete" and "create" actions
+        unset($actions['delete'], $actions['create']);
+
+        // customize the data provider preparation with the "prepareDataProvider()" method
+        $actions['index']['prepareDataProvider'] = [$this, 'prepareDataProvider'];
+
+        return $actions;
+    }
+
+    public function prepareDataProvider()
+    {
+        // prepare and return a data provider for the "index" action
+    }
+
+
+    public function actionIndex()
+    {
+    }
+
+    public function actionGetCafes()
+    {
+        $client = new Client(['baseUrl' => 'https://bandaumnikov.ru/api/test/site/get-index']);
+        $articleResponse = $client->get('')->send();
+        return $articleResponse->content;
+    }
+
+    public function actionGetFeedbacksCount()
+    {
+        return Feedbacks::feedbacksCount();
+    }
+
+    public function actionGetFeedbacksById()
+    {
+        return Feedbacks::findByCafeId($this->request->get('id'));
+    }
+
+    public function actionSaveFeedback()
+    {
+        return Feedbacks::saveFeedback($this->request->post());
+    }
+
+}
